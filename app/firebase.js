@@ -4,12 +4,12 @@ import {getFirestore} from 'firebase/firestore'
 import {getStorage} from 'firebase/storage'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCgBgjBh1w84G6A-kdFUVAIbmhuXDt3vHg",
-  authDomain: "ottracker-test.firebaseapp.com",
-  projectId: "ottracker-test",
-  storageBucket: "ottracker-test.appspot.com",
-  messagingSenderId: "1009394709303",
-  appId: "1:1009394709303:web:0ccade2b8ea29bc01de0b2"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
