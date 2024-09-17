@@ -1,41 +1,41 @@
 "use client";
-import { React } from "react";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/app/firebase";
-
 import Login from "../app/components/Auth/Login/login";
-import { Button } from "./components/ui/button";
 import { RecoilRoot } from "recoil";
+import LoadingSpinner from "@/app/components/ui/LoadingSpinner";
+import ErrorDisplay from "@/app/components/ui/ErrorDisplay";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-	const router = useRouter();
-	const [user] = useAuthState(auth);
-	const [isRedirecting, setIsRedirecting] = useState(false);
+  const [user, loading, error] = useAuthState(auth);
+	
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
-	useEffect(() => {
-		const handleRedirect = async () => {
-			if (!user && !isRedirecting) {
-				setIsRedirecting(true);
-				await router.push("/Login");
-			} else if (user && router.pathname === "/Login") {
-				router.push("/Home");
-			}
-			handleRedirect();
-		};
-	}, [user, router, isRedirecting]);
+  if (error) {
+    return <ErrorDisplay message={error.message} />;
+  }
 
-	if (isRedirecting) {
-		return <div>Loading...</div>;
-	}
+  if (!user) {
+    return (
+      <RecoilRoot>
+        <Login />
+      </RecoilRoot>
+    );
+  }
 
-	return (
-		<>
-			<RecoilRoot>
-				<Login />
-				
-			</RecoilRoot>
-		</>
-	);
+  if(user) {
+	redirect("/Home")
+  }
+
+  return (
+    <RecoilRoot>
+      {/* Render your authenticated app content here */}
+      <h1>Welcome, {user.displayName}!</h1>
+      {/* Add more components for the authenticated home page */}
+    </RecoilRoot>
+  );
 }

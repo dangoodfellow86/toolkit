@@ -39,6 +39,7 @@ export function OvertimeForm() {
 		{ type: "Regular", rate: 1 },
 		{ type: "Holiday", rate: 2 },
 		{ type: "Weekend", rate: 1.5 },
+		{ type: "On Call", rate: 1 },
 	];
 
 	const [selectedOvertimeType, setSelectedOvertimeType] = useState(
@@ -93,10 +94,16 @@ export function OvertimeForm() {
 		console.log("selectedOvertimeType is undefined");
 	}
 	useEffect(() => {
-		const baseAmount = parseFloat(hours) * 23.75;
-		const overtimeAmount = baseAmount * selectedOvertimeType.rate;
-		setAmount(overtimeAmount);
-	}, [hours, selectedOvertimeType.rate]);
+		if (selectedOvertimeType.type === "On Call") {
+			const baseAmount = parseFloat(hours) * 1;
+			const overtimeAmount = baseAmount * selectedOvertimeType.rate;
+			setAmount(overtimeAmount);
+		} else {
+			const baseAmount = parseFloat(hours) * 23.75;
+			const overtimeAmount = baseAmount * selectedOvertimeType.rate;
+			setAmount(overtimeAmount);
+		}
+	}, [hours, selectedOvertimeType.rate, selectedOvertimeType.type]);
 
 	return (
 		<>

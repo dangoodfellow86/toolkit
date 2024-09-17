@@ -4,11 +4,11 @@ import { overtimeListValue } from "../overtimeListValue";
 export const nextMonthOvertimeSelector = selector({
     key: "nextMonthOvertimeSelector",
     get: ({ get }) => {
-        const overtimes = get(overtimeListValue);
+       const overtimes = get(overtimeListValue);
+        
+        
         const currentDate = new Date();
         currentDate.setMonth(currentDate.getMonth() + 1);
-        
-        
         const nextMonth = currentDate.toLocaleString("default", { month: "long" });
         let totalOvertime = 0;
         overtimes.forEach((overtime) => {
@@ -20,6 +20,6 @@ export const nextMonthOvertimeSelector = selector({
             }
         });
         return totalOvertime.toFixed(2);
-    },
+    }
     
 });
