@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
-import { firestore } from "@/app/firebase"; // Replace './firebase' with the path to your Firebase configuration file
+import { firestore } from "@/app/firebase";
 
 import {
 	CardTitle,
@@ -9,8 +9,8 @@ import {
 	CardHeader,
 	CardContent,
 	Card,
-} from "@/app/components/ui/card";
-import { Button } from "@/app/components/ui/button";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
 	TableHead,
 	TableRow,
@@ -18,7 +18,7 @@ import {
 	TableCell,
 	TableBody,
 	Table,
-} from "@/app/components/ui/table";
+} from "@/components/ui/table";
 import { useRecoilState } from "recoil";
 import { userFormState } from "@/app/state/atoms/userFormState";
 
@@ -37,15 +37,13 @@ export function UserList() {
 			setUsers(userList);
 		});
 
-		// Cleanup function to unsubscribe when the component unmounts
 		return () => unsubscribe();
 	}, []);
 
 	const handleDelete = async (id) => {
-		// Delete overtime record from firestore
 		try {
 			await deleteDoc(doc(firestore, "users", id));
-			const newUsers = users.filter((overtime) => overtime.id !== id);
+			const newUsers = users.filter((user) => user.id !== id);
 			setUsers(newUsers);
 		} catch (error) {
 			console.error("Error deleting document: ", error);
@@ -84,18 +82,18 @@ export function UserList() {
 									<TableHead>First Name</TableHead>
 									<TableHead>Second Name</TableHead>
 									<TableHead className='w-[100px]'>Email</TableHead>
-
 									<TableHead className='w-[100px]'>Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{users.map((user) => (
-									<TableRow key={user.id}>
+									<TableRow
+										key={user.id}
+										data-id={user.id}>
 										<TableCell className='font-medium'>{user.role}</TableCell>
 										<TableCell>{user.fName}</TableCell>
 										<TableCell>{user.sName}</TableCell>
 										<TableCell>{user.email}</TableCell>
-
 										<TableCell className='flex gap-2 w-[100px]'>
 											<Button
 												className='w-6 h-6'
@@ -105,7 +103,7 @@ export function UserList() {
 												<span className='sr-only'>Edit</span>
 											</Button>
 											<Button
-												onClick={() => handleDelete(overtime.id)}
+												onClick={() => handleDelete(user.id)}
 												className='w-6 h-6'
 												size='icon'
 												variant='outline'>

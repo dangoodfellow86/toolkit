@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { firestore } from "@/app/firebase"; // Replace './firebase' with the path to your Firebase configuration file
+import { collection, addDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { firestore } from "@/app/firebase";
 import { useRecoilState } from "recoil";
 import { leaveFormState } from "@/app/state/atoms/leaveFormState";
 import {
@@ -29,6 +29,7 @@ export function LeaveForm() {
 	const [date, setDate] = useState("");
 	const [type, setType] = useState("");
 	const [hours, setHours] = useState(0);
+	const [error, setError] = useState(null);
 
 	const [dateCreated, setDateCreated] = useState("");
 	const [showForm, setShowForm] = useRecoilState(leaveFormState);
@@ -43,20 +44,99 @@ export function LeaveForm() {
 
 	const [selectedLeaveType, setSelectedLeaveType] = useState(leaveType[0]);
 
+	const updateToilLeave = async (userId, hours) => {
+		try {
+			const userRef = doc(firestore, "users", userId);
+			const userDoc = await getDoc(userRef);
+
+			if (userDoc.exists()) {
+				const userData = userDoc.data();
+				const currentToilLeave = parseFloat(userData.toilLeave || 0);
+				const newToilLeave = currentToilLeave + parseFloat(hours);
+
+				await updateDoc(userRef, {
+					toilLeave: Number(newToilLeave.toFixed(2)), // Round to 2 decimal places
+				});
+			}
+		} catch (error) {
+			console.error("Error updating toil leave:", error);
+			throw error;
+		}
+	};
+
+	const updatePublicLeave = async (userId, hours) => {
+		try {
+			const userRef = doc(firestore, "users", userId);
+			const userDoc = await getDoc(userRef);
+
+			if (userDoc.exists()) {
+				const userData = userDoc.data();
+				const currentPublicLeave = parseFloat(userData.publicLeave || 0);
+				const newPublicLeave = currentPublicLeave - parseFloat(hours);
+
+				// Check if there's enough balance
+				if (newPublicLeave < 0) {
+					throw new Error("Insufficient public leave balance");
+				}
+
+				await updateDoc(userRef, {
+					publicLeave: Number(newPublicLeave.toFixed(2)), // Round to 2 decimal places
+				});
+			}
+		} catch (error) {
+			console.error("Error updating public leave:", error);
+			throw error;
+		}
+	};
+	const updateAnnualLeave = async (userId, hours) => {
+		try {
+			const userRef = doc(firestore, "users", userId);
+			const userDoc = await getDoc(userRef);
+
+			if (userDoc.exists()) {
+				const userData = userDoc.data();
+				const currentAnnualLeave = parseFloat(userData.annualLeave || 0);
+				const newAnnualLeave = currentAnnualLeave - parseFloat(hours);
+
+				// Check if there's enough balance
+				if (newAnnualLeave < 0) {
+					throw new Error("Insufficient public leave balance");
+				}
+
+				await updateDoc(userRef, {
+					annualLeave: Number(newAnnualLeave.toFixed(2)), // Round to 2 decimal places
+				});
+			}
+		} catch (error) {
+			console.error("Error updating public leave:", error);
+			throw error;
+		}
+	};
+
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		// Add form data to firestore
+		setError(null);
+
 		try {
 			const formData = {
 				date,
 				type,
-				hours,
-
+				hours: parseFloat(hours), // Store as float in the leave collection
 				dateCreated: new Date().toISOString(),
 				userId: user.uid,
 				userEmail: user.email,
 			};
 
+			// Handle leave balance updates based on type
+			if (type === "Toil") {
+				await updateToilLeave(user.uid, hours);
+			} else if (type === "Public") {
+				await updatePublicLeave(user.uid, hours);
+			} else if (type === "Annual") {
+				await updateAnnualLeave(user.uid, hours);
+			}
+
+			// Add leave request to collection
 			const docRef = await addDoc(collection(firestore, "leave"), formData);
 			console.log("Document written with ID: ", docRef.id);
 
@@ -66,10 +146,11 @@ export function LeaveForm() {
 			setHours(0);
 			setShowForm(false);
 		} catch (error) {
-			console.error("Error adding document: ", error);
+			console.error("Error submitting leave request:", error);
+			setError(error.message || "Failed to submit leave request");
 		}
 	};
-	// Handle the case where find returns undefined
+
 	const handleSelectChange = (value) => {
 		const selectedType = value;
 		const foundLeaveType = leaveType.find((type) => type.type === selectedType);
@@ -78,11 +159,10 @@ export function LeaveForm() {
 		if (foundLeaveType) {
 			setSelectedLeaveType(foundLeaveType);
 		} else {
-			// Handle the case where no matching type was found
 			console.error("No matching type found");
 		}
 	};
-	// Check if selectedleaveType is defined before accessing its rate property
+
 	if (selectedLeaveType) {
 		console.log(selectedLeaveType.rate);
 	} else {
@@ -106,6 +186,7 @@ export function LeaveForm() {
 							</CardHeader>
 							<CardContent className='p-6'>
 								<div className='space-y-4'>
+									{error && <div className='text-red-500 text-sm'>{error}</div>}
 									<div className='grid grid-cols-1 gap-4'>
 										<div className='flex flex-col space-y-1.5'>
 											<Label htmlFor='date'>Date</Label>
@@ -143,6 +224,7 @@ export function LeaveForm() {
 											<Input
 												id='hours'
 												type='number'
+												step='0.1' // Allow decimal inputs
 												placeholder='Enter hours'
 												value={hours}
 												onChange={(e) => setHours(Number(e.target.value))}

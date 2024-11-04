@@ -7,9 +7,10 @@ import {
 	doc,
 	where,
 	onSnapshot,
+	getDoc,
+	updateDoc,
 } from "firebase/firestore";
-import { firestore } from "@/app/firebase"; // Replace './firebase' with the path to your Firebase configuration file
-
+import { firestore } from "@/app/firebase";
 import {
 	CardTitle,
 	CardDescription,
@@ -28,7 +29,6 @@ import {
 } from "@/app/components/ui/table";
 import { useRecoilState } from "recoil";
 import { leaveFormState } from "@/app/state/atoms/leaveFormState";
-
 import { auth } from "@/app/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 
@@ -36,6 +36,7 @@ export function LeaveList() {
 	const [showForm, setShowForm] = useRecoilState(leaveFormState);
 	const [leaveList, setLeaveList] = useState([]);
 	const [user] = useAuthState(auth);
+	const [error, setError] = useState(null);
 
 	useEffect(() => {
 		const leaveCollectionref = query(
@@ -50,9 +51,9 @@ export function LeaveList() {
 			setLeaveList(dbCall);
 		});
 
-		// Cleanup function to unsubscribe when the component unmounts
 		return () => unsubscribe();
-	}, []);
+	}, [user]);
+
 	const calculateTotalHours = () => {
 		let totalHours = 0;
 		leaveList.forEach((leave) => {
@@ -60,15 +61,64 @@ export function LeaveList() {
 		});
 		return totalHours;
 	};
-	console.log(calculateTotalHours());
-	const handleDelete = async (id) => {
-		// Delete overtime record from firestore
+
+	const restoreLeaveBalance = async (leaveRecord) => {
 		try {
-			await deleteDoc(doc(firestore, "leave", id));
-			const newOvertimes = overtimes.filter((overtime) => overtime.id !== id);
-			setOvertimes(newOvertimes);
+			const userRef = doc(firestore, "users", user.uid);
+			const userDoc = await getDoc(userRef);
+
+			if (!userDoc.exists()) {
+				throw new Error("User document not found");
+			}
+
+			const userData = userDoc.data();
+			let updateData = {};
+
+			if (leaveRecord.type === "Public") {
+				const currentBalance = parseFloat(userData.publicLeave || 0);
+				const newBalance = currentBalance + parseFloat(leaveRecord.hours);
+				updateData.publicLeave = Number(newBalance.toFixed(2));
+			} else if (leaveRecord.type === "Annual") {
+				const currentBalance = parseFloat(userData.annualLeave || 0);
+				const newBalance = currentBalance + parseFloat(leaveRecord.hours);
+				updateData.annualLeave = Number(newBalance.toFixed(2));
+			} else if (leaveRecord.type === "Toil") {
+				const currentBalance = parseFloat(userData.toilLeave || 0);
+				const newBalance = currentBalance - parseFloat(leaveRecord.hours);
+				updateData.toilLeave = Number(newBalance.toFixed(2));
+			}
+
+			if (Object.keys(updateData).length > 0) {
+				await updateDoc(userRef, updateData);
+			}
 		} catch (error) {
-			console.error("Error deleting document: ", error);
+			console.error("Error restoring leave balance:", error);
+			throw error;
+		}
+	};
+
+	const handleDelete = async (id) => {
+		try {
+			// Get the leave record before deleting
+			const leaveToDelete = leaveList.find((leave) => leave.id === id);
+
+			if (!leaveToDelete) {
+				throw new Error("Leave record not found");
+			}
+
+			// If it's Annual or Public leave, restore the balance
+			if (["Annual", "Public", "Toil"].includes(leaveToDelete.type)) {
+				await restoreLeaveBalance(leaveToDelete);
+			}
+
+			// Delete the leave record
+			await deleteDoc(doc(firestore, "leave", id));
+
+			// Update local state
+			setLeaveList((prev) => prev.filter((leave) => leave.id !== id));
+		} catch (error) {
+			console.error("Error deleting leave record:", error);
+			setError("Failed to delete leave record");
 		}
 	};
 
@@ -96,6 +146,7 @@ export function LeaveList() {
 					</div>
 				</CardHeader>
 				<CardContent className='p-0'>
+					{error && <div className='p-4 text-red-500 text-sm'>{error}</div>}
 					<div className='overflow-auto'>
 						<Table>
 							<TableHeader>
@@ -104,7 +155,6 @@ export function LeaveList() {
 									<TableHead>Date (dd mm yyyy)</TableHead>
 									<TableHead>Date Created (dd mm yyyy)</TableHead>
 									<TableHead className='w-[100px]'>Hours</TableHead>
-
 									<TableHead className='w-[100px]'>Actions</TableHead>
 								</TableRow>
 							</TableHeader>
@@ -127,7 +177,6 @@ export function LeaveList() {
 											})}
 										</TableCell>
 										<TableCell>{leave.hours}</TableCell>
-
 										<TableCell className='flex gap-2 w-[100px]'>
 											<Button
 												className='w-6 h-6'
